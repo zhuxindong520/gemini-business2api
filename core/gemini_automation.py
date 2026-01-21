@@ -14,7 +14,6 @@ from DrissionPage import ChromiumPage, ChromiumOptions
 
 # 常量
 AUTH_HOME_URL = "https://auth.business.gemini.google/"
-LOGIN_URL = "https://auth.business.gemini.google/login?continueUrl=https:%2F%2Fbusiness.gemini.google%2F&wiffid=CAoSJDIwNTlhYzBjLTVlMmMtNGUxZS1hY2JkLThmOGY2ZDE0ODM1Mg"
 DEFAULT_XSRF_TOKEN = "KdLRzKwwBTD5wo8nUollAbY6cW0"
 
 # Linux 下常见的 Chromium 路径
@@ -173,62 +172,33 @@ class GeminiAutomation:
         except Exception as e:
             self._log("warning", f"failed to set cookies: {e}")
 
-        # Step 2: 尝试逐步输入邮箱（模拟真实用户行为）
-        # 访问登录页面（使用与UC相同的URL，包含wiffid参数）
-        self._log("info", "navigating to login page")
-        page.get(LOGIN_URL, timeout=self.timeout)
-        time.sleep(3)
+        login_hint = quote(email, safe="")
+        login_url = f"https://auth.business.gemini.google/login/email?continueUrl=https%3A%2F%2Fbusiness.gemini.google%2F&loginHint={login_hint}&xsrfToken={DEFAULT_XSRF_TOKEN}"
+        page.get(login_url, timeout=self.timeout)
+        time.sleep(5)
 
-        # 尝试查找邮箱输入框
-        email_input = self._find_email_input(page)
-
-        if email_input:
-            # 找到输入框：模拟人类输入邮箱
-            self._log("info", "found email input, simulating human typing")
-            if not self._simulate_human_input(email_input, email):
-                # 模拟输入失败，降级到直接输入
-                self._log("warning", "simulated email input failed, fallback to direct input")
-                email_input.input(email, clear=True)
-                time.sleep(0.5)
-
-            # 点击"下一步"按钮
-            next_btn = self._find_next_button(page)
-            if next_btn:
-                self._log("info", "clicking next button")
-                next_btn.click()
-            else:
-                self._log("info", "next button not found, pressing enter")
-                email_input.input("\n")
-
-            time.sleep(3)
-        else:
-            # 找不到输入框：记录错误并返回
-            self._log("error", "email input not found on login page")
-            self._save_screenshot(page, "email_input_not_found")
-            return {"success": False, "error": "email input not found"}
-
-        # Step 3: 检查当前页面状态
+        # Step 2: 检查当前页面状态
         current_url = page.url
         has_business_params = "business.gemini.google" in current_url and "csesidx=" in current_url and "/cid/" in current_url
 
         if has_business_params:
             return self._extract_config(page, email)
 
-        # Step 4: 点击发送验证码按钮
+        # Step 3: 点击发送验证码按钮
         self._log("info", "clicking send verification code button")
         if not self._click_send_code_button(page):
             self._log("error", "failed to trigger verification code sending")
             self._save_screenshot(page, "send_code_button_missing")
             return {"success": False, "error": "send code button not found"}
 
-        # Step 5: 等待验证码输入框出现
+        # Step 4: 等待验证码输入框出现
         code_input = self._wait_for_code_input(page)
         if not code_input:
             self._log("error", "code input not found")
             self._save_screenshot(page, "code_input_missing")
             return {"success": False, "error": "code input not found"}
 
-        # Step 6: 轮询邮件获取验证码（传入发送时间）
+        # Step 5: 轮询邮件获取验证码（传入发送时间）
         self._log("info", "polling for verification code")
         code = mail_client.poll_for_code(timeout=40, interval=4, since_time=send_time)
 
@@ -252,7 +222,7 @@ class GeminiAutomation:
 
         self._log("info", f"code received: {code}")
 
-        # Step 7: 输入验证码并提交
+        # Step 6: 输入验证码并提交
         code_input = page.ele("css:input[jsname='ovqh0b']", timeout=3) or \
                      page.ele("css:input[type='tel']", timeout=2)
 
@@ -280,7 +250,7 @@ class GeminiAutomation:
                 self._log("info", "pressing enter to submit")
                 code_input.input("\n")
 
-        # Step 8: 等待页面自动重定向（提交验证码后 Google 会自动跳转）
+        # Step 7: 等待页面自动重定向（提交验证码后 Google 会自动跳转）
         self._log("info", "waiting for auto-redirect after verification")
         time.sleep(12)  # 增加等待时间，让页面有足够时间完成重定向（如果网络慢可以继续增加）
 
@@ -294,10 +264,10 @@ class GeminiAutomation:
             self._save_screenshot(page, "verification_submit_failed")
             return {"success": False, "error": "verification code submission failed"}
 
-        # Step 9: 处理协议页面（如果有）
+        # Step 8: 处理协议页面（如果有）
         self._handle_agreement_page(page)
 
-        # Step 10: 检查是否已经在正确的页面
+        # Step 9: 检查是否已经在正确的页面
         current_url = page.url
         has_business_params = "business.gemini.google" in current_url and "csesidx=" in current_url and "/cid/" in current_url
 
@@ -306,7 +276,7 @@ class GeminiAutomation:
             self._log("info", "already on business page with parameters")
             return self._extract_config(page, email)
 
-        # Step 11: 如果不在正确的页面，尝试导航
+        # Step 10: 如果不在正确的页面，尝试导航
         if "business.gemini.google" not in current_url:
             self._log("info", "navigating to business page")
             page.get("https://business.gemini.google/", timeout=self.timeout)
@@ -314,12 +284,12 @@ class GeminiAutomation:
             current_url = page.url
             self._log("info", f"URL after navigation: {current_url}")
 
-        # Step 12: 检查是否需要设置用户名
+        # Step 11: 检查是否需要设置用户名
         if "cid" not in page.url:
             if self._handle_username_setup(page):
                 time.sleep(5)  # 增加等待时间
 
-        # Step 13: 等待 URL 参数生成（csesidx 和 cid）
+        # Step 12: 等待 URL 参数生成（csesidx 和 cid）
         self._log("info", "waiting for URL parameters")
         if not self._wait_for_business_params(page):
             self._log("warning", "URL parameters not generated, trying refresh")
@@ -332,7 +302,7 @@ class GeminiAutomation:
                 self._save_screenshot(page, "params_missing")
                 return {"success": False, "error": "URL parameters not found"}
 
-        # Step 14: 提取配置
+        # Step 13: 提取配置
         self._log("info", "login success")
         return self._extract_config(page, email)
 
@@ -423,41 +393,6 @@ class GeminiAutomation:
         except Exception as e:
             self._log("warning", f"simulated input failed: {e}")
             return False
-
-    def _find_email_input(self, page):
-        """查找邮箱输入框"""
-        selectors = [
-            "css:input[type='email']",
-            "css:input[name='identifier']",
-            "css:input[autocomplete='username']",
-            "css:input[autocomplete='email']",
-            "css:input[aria-label*='邮箱' i]",
-            "css:input[aria-label*='email' i]",
-            "css:input[aria-label*='Email' i]",
-        ]
-        for selector in selectors:
-            try:
-                el = page.ele(selector, timeout=2)
-                if el:
-                    self._log("info", f"found email input: {selector}")
-                    return el
-            except Exception:
-                continue
-        return None
-
-    def _find_next_button(self, page):
-        """查找'下一步'按钮"""
-        keywords = ["下一步", "next", "继续", "continue", "submit", "提交"]
-        try:
-            buttons = page.eles("tag:button")
-            for btn in buttons:
-                text = (btn.text or "").strip().lower()
-                if text and any(kw in text for kw in keywords):
-                    self._log("info", f"found next button: {text}")
-                    return btn
-        except Exception:
-            pass
-        return None
 
     def _find_verify_button(self, page):
         """查找验证按钮（排除重新发送按钮）"""
