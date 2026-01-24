@@ -20,7 +20,7 @@
     >
       <div
         v-if="visible"
-        class="fixed z-[9999] w-64 rounded-lg border border-border bg-card p-3 shadow-sm"
+        class="fixed z-[9999] w-64 rounded-lg border border-border bg-card p-3 shadow-lg"
         :style="tooltipStyle"
         @mouseenter="handleTooltipEnter"
         @mouseleave="handleTooltipLeave"

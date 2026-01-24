@@ -2061,6 +2061,7 @@ def parse_images_from_response(data_list: list) -> tuple[list, str]:
     """
     file_ids = []
     session_name = ""
+    seen_file_ids = set()  # 用于去重
 
     for data in data_list:
         sar = data.get("streamAssistResponse")
@@ -2082,10 +2083,16 @@ def parse_images_from_response(data_list: list) -> tuple[list, str]:
             # 检查file字段（图片生成的关键）
             file_info = content.get("file")
             if file_info and file_info.get("fileId"):
+                file_id = file_info["fileId"]
+                # 去重：同一个 fileId 只处理一次
+                if file_id in seen_file_ids:
+                    continue
+                seen_file_ids.add(file_id)
+
                 mime_type = file_info.get("mimeType", "image/png")
-                logger.debug(f"[PARSE] 解析文件: fileId={file_info['fileId']}, mimeType={mime_type}")
+                logger.debug(f"[PARSE] 解析文件: fileId={file_id}, mimeType={mime_type}")
                 file_ids.append({
-                    "fileId": file_info["fileId"],
+                    "fileId": file_id,
                     "mimeType": mime_type
                 })
 

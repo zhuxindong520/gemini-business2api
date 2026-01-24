@@ -297,8 +297,6 @@ const imageModelOptions = computed(() => {
     { label: 'Gemini 2.5 Pro', value: 'gemini-2.5-pro' },
     { label: 'Gemini 2.5 Flash', value: 'gemini-2.5-flash' },
     { label: 'Gemini Auto', value: 'gemini-auto' },
-    { label: 'Gemini Imagen (图片生成)', value: 'gemini-imagen' },
-    { label: 'Gemini Veo (视频生成)', value: 'gemini-veo' },
   ]
 
   const selected = localSettings.value?.image_generation.supported_models || []
